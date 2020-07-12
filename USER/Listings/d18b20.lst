@@ -1,0 +1,169 @@
+C51 COMPILER V9.57.0.0   D18B20                                                            06/27/2020 22:52:52 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE D18B20
+OBJECT MODULE PLACED IN ..\OUTPUT\d18b20.obj
+COMPILER INVOKED BY: C:\Keil_v5\MDK\C51\BIN\C51.EXE ..\FUN\d18b20.c OPTIMIZE(8,SPEED) BROWSE INCDIR(..\FUN) DEBUG OBJECT
+                    -EXTEND PRINT(.\Listings\d18b20.lst) TABS(2) OBJECT(..\OUTPUT\d18b20.obj)
+
+line level    source
+
+   1          #include "d18b20.h"
+   2          #include "lcd1602.h"
+   3          #include <stc12c5a60s2.h>
+   4          sbit DS = P3^5; //1_wire
+   5          unsigned char strT[6];
+   6          extern bit flag18;
+   7          void delay(unsigned int us)
+   8          {
+   9   1        while(us--);
+  10   1      }
+  11          
+  12          //初始化程序
+  13          bit ds_init()
+  14          {
+  15   1        bit i;
+  16   1        DS=1;
+  17   1        delay(1);
+  18   1        DS=0;
+  19   1        delay(998);//延时480us以上，ds18b20将被复位
+  20   1        DS=1;
+  21   1        delay(59);//15~60us,等待
+  22   1        i=DS;
+  23   1        delay(300);//采样之后等待60~240us
+  24   1        DS=1;
+  25   1        delay(1);
+  26   1        return (i);
+  27   1      }
+  28          
+  29          //写一个字节
+  30          void write_byte(unsigned char dat)
+  31          {
+  32   1        unsigned char i;
+  33   1        for(i=0;i<8;i++)
+  34   1        {
+  35   2          DS=0;
+  36   2          delay(1);
+  37   2          DS=dat&0x01;
+  38   2          delay(150);//延时60us以上
+  39   2          DS=1; //释放总线准备下次数据写入
+  40   2          delay(1);//1us
+  41   2          dat >>= 1;
+  42   2        }
+  43   1      }
+  44          //读一个字节
+  45          unsigned char read_byte()
+  46          {
+  47   1        unsigned char i,j,dat;
+  48   1        for(i=0;i<8;i++)
+  49   1        {
+  50   2          DS=0;//产生读时序
+  51   2          delay(1);//1us
+  52   2          DS=1;//释放中线采样
+  53   2          delay(1);//1us
+  54   2          j=DS;
+C51 COMPILER V9.57.0.0   D18B20                                                            06/27/2020 22:52:52 PAGE 2   
+
+  55   2          delay(150);//60us以上
+  56   2          DS=1;
+  57   2          delay(1);//1us
+  58   2          dat=(j<<7)|(dat>>1);
+  59   2        }
+  60   1        return(dat);
+  61   1      }
+  62          bit Start18B20()
+  63          {
+  64   1        bit ack;
+  65   1        EA=0;
+  66   1        ack=ds_init();
+  67   1        if(ack==0)
+  68   1        {
+  69   2          write_byte(0xcc);
+  70   2          write_byte(0x44);
+  71   2        }
+  72   1        EA=1;
+  73   1        return(~ack);
+  74   1      }
+  75          
+  76          
+  77          bit Get18B20Temp(int *temp)
+  78          {
+  79   1        bit ack;
+  80   1        unsigned char LSB,MSB;
+  81   1        EA=0;
+  82   1        ack=ds_init();
+  83   1        if(ack==0)
+  84   1        {
+  85   2          write_byte(0xcc);
+  86   2          write_byte(0xbe);
+  87   2          LSB=read_byte();
+  88   2          MSB=read_byte();
+  89   2          *temp=((int)MSB<<8)+LSB;
+  90   2        }
+  91   1        EA=1;
+  92   1        return ~ack;
+  93   1      }
+  94          
+  95          unsigned char IntToString(unsigned char *str,int dat)
+  96          {
+  97   1        signed char i=0;
+  98   1        unsigned char len=0;
+  99   1        unsigned char buf[6];
+ 100   1      
+ 101   1        if(dat<0)
+ 102   1        {
+ 103   2          dat=-dat;
+ 104   2          *str++='-';
+ 105   2          len++;
+ 106   2        }
+ 107   1        do{
+ 108   2          buf[i++]=dat%10;
+ 109   2          dat/=10;
+ 110   2        }while(dat>0);
+ 111   1        len+=i;
+ 112   1        while(i-->0)
+ 113   1        {
+ 114   2          *str++=buf[i]+'0';
+ 115   2        }
+ 116   1        *str='\0';
+C51 COMPILER V9.57.0.0   D18B20                                                            06/27/2020 22:52:52 PAGE 3   
+
+ 117   1        return len;
+ 118   1      }
+ 119          
+ 120          void ds18b20()
+ 121          {
+ 122   1        int xdata temp;
+ 123   1        int xdata intT,decT;
+ 124   1        unsigned char len;
+ 125   1        if(flag18)
+ 126   1          {
+ 127   2            if(Get18B20Temp(&temp))
+ 128   2            {
+ 129   3              intT=temp>>4;
+ 130   3              decT=temp&0xF;
+ 131   3              len=IntToString(strT,intT);
+ 132   3              strT[len++]='.';
+ 133   3              decT=(decT*10)/16;
+ 134   3              strT[len++]=decT+'0';
+ 135   3              strT[len]='c';
+ 136   3              strT[++len]='\0';
+ 137   3              LcdShowStr(0,1,strT);
+ 138   3            }
+ 139   2            Start18B20();
+ 140   2          }
+ 141   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    523    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----       6
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      6      16
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----       3
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

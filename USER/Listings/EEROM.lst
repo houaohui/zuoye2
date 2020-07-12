@@ -1,0 +1,228 @@
+C51 COMPILER V9.57.0.0   EEROM                                                             06/27/2020 22:52:52 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE EEROM
+OBJECT MODULE PLACED IN ..\OUTPUT\EEROM.obj
+COMPILER INVOKED BY: C:\Keil_v5\MDK\C51\BIN\C51.EXE ..\FUN\EEROM.c OPTIMIZE(8,SPEED) BROWSE INCDIR(..\FUN) DEBUG OBJECTE
+                    -XTEND PRINT(.\Listings\EEROM.lst) TABS(2) OBJECT(..\OUTPUT\EEROM.obj)
+
+line level    source
+
+   1          #include "EEROM.h"
+   2          #include <intrins.h>
+   3          #define I2CDelay() {_nop_();_nop_();_nop_();_nop_();}
+   4          sbit I2C_SCL = P3^6;
+   5          sbit I2C_SDA = P3^7;
+   6            
+   7          //void Delay5ms()   //@33.1776MHz
+   8          //{
+   9          //  unsigned char i, j, k;
+  10          
+  11          //  i = 1;
+  12          //  j = 162;
+  13          //  k = 89;
+  14          //  do
+  15          //  {
+  16          //    do
+  17          //    {
+  18          //      while (--k);
+  19          //    } while (--j);
+  20          //  } while (--i);
+  21          //}
+  22          
+  23          
+  24          
+  25          void I2CStart()
+  26          {
+  27   1        I2C_SDA = 1;
+  28   1        I2C_SCL = 1;
+  29   1        I2CDelay();
+  30   1        I2C_SDA = 0;
+  31   1        I2CDelay();
+  32   1        I2C_SCL = 0;
+  33   1      }
+  34          
+  35          void I2CStop()
+  36          {
+  37   1        I2C_SCL = 0;
+  38   1        I2C_SDA = 0;
+  39   1        I2CDelay();
+  40   1        I2C_SCL = 1;
+  41   1        I2CDelay();
+  42   1        I2C_SDA = 1;
+  43   1        I2CDelay();
+  44   1      }
+  45          
+  46          bit I2CWrite(unsigned char dat)
+  47          {
+  48   1        bit ack;
+  49   1        unsigned char mask;
+  50   1        for (mask=0x80; mask!=0; mask>>=1)
+  51   1        {
+  52   2          if ((mask&dat) == 0)
+  53   2          I2C_SDA = 0;
+  54   2          else
+C51 COMPILER V9.57.0.0   EEROM                                                             06/27/2020 22:52:52 PAGE 2   
+
+  55   2          I2C_SDA = 1;
+  56   2          I2CDelay();
+  57   2          I2C_SCL = 1;
+  58   2          I2CDelay();
+  59   2          I2C_SCL = 0; 
+  60   2        }
+  61   1        I2C_SDA = 1;
+  62   1        I2CDelay();
+  63   1        I2C_SCL = 1;
+  64   1        ack = I2C_SDA; 
+  65   1        I2CDelay();
+  66   1        I2C_SCL = 0; 
+  67   1        return (~ack);
+  68   1      }
+  69          
+  70          unsigned char I2CReadNAK()
+  71          {
+  72   1        unsigned char mask;
+  73   1        unsigned char dat;
+  74   1        I2C_SDA = 1; 
+  75   1        for (mask=0x80; mask!=0; mask>>=1)
+  76   1        {
+  77   2          I2CDelay();
+  78   2          I2C_SCL = 1;
+  79   2          if(I2C_SDA == 0) 
+  80   2          dat &= ~mask; 
+  81   2          else
+  82   2          dat |= mask;
+  83   2          I2CDelay();
+  84   2          I2C_SCL = 0;
+  85   2        }
+  86   1        I2C_SDA = 1;
+  87   1        I2CDelay();
+  88   1        I2C_SCL = 1; 
+  89   1        I2CDelay();
+  90   1        I2C_SCL = 0;
+  91   1        return dat;
+  92   1      }
+  93          
+  94          unsigned char I2CReadACK()
+  95          {
+  96   1        unsigned char mask;
+  97   1        unsigned char dat;
+  98   1        I2C_SDA = 1;
+  99   1        for (mask=0x80; mask!=0; mask>>=1)
+ 100   1        {
+ 101   2          I2CDelay();
+ 102   2          I2C_SCL = 1;
+ 103   2          if(I2C_SDA == 0) 
+ 104   2          dat &= ~mask; 
+ 105   2          else
+ 106   2          dat |= mask;
+ 107   2          I2CDelay();
+ 108   2          I2C_SCL = 0;
+ 109   2        }
+ 110   1          I2C_SDA = 0;
+ 111   1          I2CDelay();
+ 112   1          I2C_SCL = 1;
+ 113   1          I2CDelay();
+ 114   1          I2C_SCL = 0; 
+ 115   1          return dat;
+ 116   1      }
+C51 COMPILER V9.57.0.0   EEROM                                                             06/27/2020 22:52:52 PAGE 3   
+
+ 117          unsigned char E2ReadByte(unsigned char addr)
+ 118          {
+ 119   1        unsigned char dat;
+ 120   1        EA=0;
+ 121   1        I2CStart();
+ 122   1        I2CWrite(0xa2); 
+ 123   1        I2CWrite(addr); 
+ 124   1        I2CStart();
+ 125   1        I2CWrite(0xa3); 
+ 126   1        dat = I2CReadNAK(); 
+ 127   1        I2CStop();
+ 128   1        EA=1;
+ 129   1        return dat;
+ 130   1      }
+ 131          
+ 132          void E2WriteByte(unsigned char addr, unsigned char dat)
+ 133          {
+ 134   1        EA=0;
+ 135   1        I2CStart();
+ 136   1        I2CWrite(0xa2); 
+ 137   1        I2CWrite(addr); 
+ 138   1        I2CWrite(dat);
+ 139   1        I2CStop();
+ 140   1        EA=1;
+ 141   1      }
+ 142          
+ 143          void E2Read(unsigned char *buf, unsigned char addr, unsigned char len)
+ 144          {
+ 145   1        
+ 146   1        do{ //用寻址操作查询当前是否可进行读写操作
+ 147   2           I2CStart();
+ 148   2           if(I2CWrite(0xa2)) //应答则跳出循环，非应答则进行下一次查询
+ 149   2           {
+ 150   3             break;
+ 151   3           }
+ 152   2           I2CStop();
+ 153   2          } while(1);
+ 154   1        I2CWrite(addr); //写入起始地址
+ 155   1        I2CStart(); //发送重复启动信号
+ 156   1        I2CWrite(0xa3); //寻址器件，后续为读操作
+ 157   1        while (len > 1) //连续读取 len-1 个字节
+ 158   1        {
+ 159   2          *buf++ = I2CReadACK(); //最后字节之前为读取操作+应答
+ 160   2          len--;
+ 161   2        }
+ 162   1        *buf = I2CReadNAK(); //最后一个字节为读取操作+非应答
+ 163   1        I2CStop();
+ 164   1      }
+ 165             
+ 166             
+ 167             
+ 168          /* E2 写入函数，buf-源数据指针，addr-E2 中的起始地址，len-写入长度 */
+ 169          void E2Write(unsigned char *buf, unsigned char addr, unsigned char len)
+ 170          {
+ 171   1        while (len--)
+ 172   1        {
+ 173   2          do { //用寻址操作查询当前是否可进行读写操作
+ 174   3          I2CStart();
+ 175   3          if(I2CWrite(0xa2)) //应答则跳出循环，非应答则进行下一次查询
+ 176   3          {
+ 177   4            break;
+ 178   4          }
+C51 COMPILER V9.57.0.0   EEROM                                                             06/27/2020 22:52:52 PAGE 4   
+
+ 179   3          I2CStop();
+ 180   3          }while(1);
+ 181   2          
+ 182   2          I2CWrite(addr++); //写入起始地址
+ 183   2          I2CWrite(*buf++); //写入一个字节数据
+ 184   2          I2CStop(); //结束写操作，以等待写入完成
+ 185   2        }
+ 186   1      }
+ 187          
+ 188          
+ 189          
+ 190          //  E2Write(str,0x00,3);
+ 191          //  Delay5ms();
+ 192          //  E2Read(strbuf,0x00,3);
+ 193          
+ 194          
+ 195          
+ 196          
+ 197          
+ 198          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    382    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      10
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----       1
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

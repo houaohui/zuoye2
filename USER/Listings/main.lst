@@ -1,0 +1,646 @@
+C51 COMPILER V9.57.0.0   MAIN                                                              07/09/2020 16:13:21 PAGE 1   
+
+
+C51 COMPILER V9.57.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN ..\OUTPUT\main.obj
+COMPILER INVOKED BY: C:\Keil_v5\MDK\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE INCDIR(..\FUN) DEBUG OBJECTEXTEND PR
+                    -INT(.\Listings\main.lst) TABS(2) OBJECT(..\OUTPUT\main.obj)
+
+line level    source
+
+   1          /*
+   2          ÏêÏ¸¼û³ÌÐòËµÃ÷
+   3          */
+   4          #include <stc12c5a60s2.h>
+   5          #include "lcd1602.h"
+   6          #include "key.h"
+   7          #include "IRReceived.h"
+   8          #include "d18b20.h"
+   9          #include "led.h"
+  10          #include "EEROM.h"
+  11          
+  12          sbit ENLED=P1^1;
+  13          bit CmpMemory(unsigned char *ptr1, unsigned char *ptr2);
+  14          
+  15          void report();
+  16          void configuart();
+  17          void UARTdriver();
+  18          void uartaction();
+  19          void UARTsend(unsigned char *buf);
+  20          void disply();
+  21          void ledscan();
+  22          void Timer0Init();
+  23          void IRAction();
+  24          
+  25          unsigned char mima[7]="123456";
+  26          unsigned char code start0[] = "Loading...";
+  27          unsigned char code start1[] = "Please input password!";
+  28          unsigned char code start2[] = "Welcome to you!";
+  29          unsigned char code start3[] = "The password is error! pleease input again!";
+  30          unsigned char TIM[3]={8,25,0},sw=0,ab=0,Timer=60;
+  31          unsigned char bufRxd[16],cntRxd=0;
+  32          unsigned int index=0,index2=0;
+  33          bit ui,uart,flagTxd,en,disp,yi,flag18,gaimi,gaishi,run,storTIM,repo;
+  34          
+  35          
+  36          
+  37          void main()
+  38          {
+  39   1        ENLED=1;
+  40   1        EA=1;
+  41   1        Timer0Init();
+  42   1        configuart();
+  43   1        InitLcd1602();
+  44   1        InitInfrared();
+  45   1        UARTsend(start1);
+  46   1        LcdShowStr(0,0,start0);//ÏÔÊ¾µÈ´ý
+  47   1        LcdShowStr(0,0,start0);//ÏÔÊ¾µÈ´ý
+  48   1        Timer=E2ReadByte(0x03);//¶ÁÈ¡ÉÏ´ÎµÄÃë±í
+  49   1        E2Read(TIM,0x00,3);//¶ÁÈ¡´¢´æµÄÊ±¼ä
+  50   1        while(1)
+  51   1        {
+  52   2          
+  53   2          UARTdriver();
+  54   2          
+C51 COMPILER V9.57.0.0   MAIN                                                              07/09/2020 16:13:21 PAGE 2   
+
+  55   2          if(ui)
+  56   2            {
+  57   3              report();
+  58   3              switch(ab)
+  59   3              {
+  60   4                case 0:if(disp){disply();disp=0;ds18b20();}break;//A½çÃæ0.1ÃëË¢ÐÂÒ»´Î
+  61   4                case 1:if(yi){LcdShowStr(0,0,"B Timer");LcdShowStr(0,1,"Press n to save");yi=0;ENLED=0;}break;//Ö»Ë¢Ð
+             -ÂÒ»´ÎB½çÃæ
+  62   4                case 2:if(yi){LcdShowStr(0,0,"C Changepassword");yi=0;gaimi=1;}break;//¸ÄÃÜÂë½çÃæ
+  63   4                case 3:if(yi){LcdShowStr(0,0,"D Change Time");LcdShowStr(0,1,"Press n to save");yi=0;gaishi=1;}break
+             -;//¸ÄÊ±¼ä½çÃæ
+  64   4              }
+  65   3              
+  66   3              
+  67   3            }
+  68   2            keydriver();
+  69   2            IRAction();
+  70   2        }
+  71   1      }
+  72          //ÊµÊ±ÉÏ´«Ê±¼äºÍÎÂ¶È
+  73          void report()
+  74          {
+  75   1        unsigned char report[12];
+  76   1        if(repo)
+  77   1        {
+  78   2          repo=0;
+  79   2          report[0]=TIM[0]/10+'0';
+  80   2          report[1]=TIM[0]%10+'0';
+  81   2          report[2]=TIM[1]/10+'0';
+  82   2          report[3]=TIM[1]%10+'0';
+  83   2          report[4]=(TIM[2]/10%10)+'0';
+  84   2          report[5]=TIM[2]%10+'0';
+  85   2          report[6]='/';
+  86   2          report[7]=strT[0];
+  87   2          report[8]=strT[1];
+  88   2          report[9]=strT[2];
+  89   2          report[10]=strT[3];
+  90   2          report[11]='\0';
+  91   2          UARTsend(report);
+  92   2          UARTsend("\r\n");
+  93   2        }
+  94   1      }
+  95          //Ê±¼äÏÔÊ¾µÄ×Ö·û´®
+  96          void disply()
+  97          {
+  98   1        unsigned char abs[14];
+  99   1        if(ab==0)//ÒªÏÔÊ¾½çÃæA
+ 100   1        {
+ 101   2          abs[0]='A';
+ 102   2          abs[1]=' ';
+ 103   2          abs[2]=TIM[0]/10+'0';
+ 104   2          abs[3]=TIM[0]%10+'0';
+ 105   2          abs[4]='-';
+ 106   2          abs[5]=TIM[1]/10+'0';
+ 107   2          abs[6]=TIM[1]%10+'0';
+ 108   2          abs[7]='-';
+ 109   2          abs[8]=(TIM[2]/10%10)+'0';
+ 110   2          abs[9]=TIM[2]%10+'0';
+ 111   2          abs[10]='\0';
+ 112   2          LcdShowStr(0,0,abs);
+ 113   2        }
+ 114   1      }
+C51 COMPILER V9.57.0.0   MAIN                                                              07/09/2020 16:13:21 PAGE 3   
+
+ 115          
+ 116          bit CmpMemory(unsigned char *ptr1, unsigned char *ptr2)//Ö»ÓÃÓÚÃÜÂë±È½Ï
+ 117          {
+ 118   1        while (*ptr2!='\0')
+ 119   1        {
+ 120   2            if (*ptr1++ != *ptr2++) //Óöµ½²»ÏàµÈÊý¾ÝÊ±¼´¿Ì·µ»Ø 0
+ 121   2          {
+ 122   3            return 0;
+ 123   3          }
+ 124   2        }
+ 125   1        return 1; //±È½ÏÍêÈ«²¿³¤¶ÈÊý¾Ý¶¼ÏàµÈÔò·µ»Ø 1 
+ 126   1      }
+ 127          void UARTsend(unsigned char *buf)
+ 128          {
+ 129   1        while(*buf!='\0')
+ 130   1        {
+ 131   2          flagTxd=0;
+ 132   2          SBUF=*buf++;
+ 133   2          while(!flagTxd);
+ 134   2        }
+ 135   1      }
+ 136          void uartaction()
+ 137          {
+ 138   1        if(ui==0)//¿ª»úºó²»Ö´ÐÐÃÜÂëÅÐ¶Ï
+ 139   1        {
+ 140   2          if(CmpMemory(bufRxd,mima))//ÃÜÂë±È½Ï³É¹¦ºó¿ª»ú
+ 141   2          {
+ 142   3            ui=1;
+ 143   3            UARTsend(start2);
+ 144   3          }
+ 145   2          else//Ã»ÓÐ³É¹¦Ôò
+ 146   2          {
+ 147   3            UARTsend(start3);
+ 148   3          }
+ 149   2        }
+ 150   1        
+ 151   1        if(bufRxd[0]=='T')//Í¨¹ýÉÏÎ»»úÉèÖÃÊ±¼ä
+ 152   1        {
+ 153   2          TIM[0]=(bufRxd[1]-'0')*10+(bufRxd[2]-'0');
+ 154   2          TIM[1]=(bufRxd[3]-'0')*10+(bufRxd[4]-'0');
+ 155   2          TIM[2]=(bufRxd[5]-'0')*10+(bufRxd[6]-'0');
+ 156   2        }
+ 157   1      }
+ 158          void UARTdriver()
+ 159          {
+ 160   1        if(uart)//Ò»ÃëÒÔºóÈç¹ûÃ»ÓÐ½ÓÊÜÊý¾ÝÔò¿ªÊ¼
+ 161   1        {
+ 162   2          if(cntRxd!=0)//cntRxd²»ÎªÁã£¬ËµÃ÷Ò»Ö¡Êý¾Ý½ÓÊÕÍê³É£¬¿ªÊ¼´¦ÀíÊý¾Ý
+ 163   2          {
+ 164   3            uartaction();
+ 165   3          }
+ 166   2          uart=0;
+ 167   2          cntRxd=0;//ÏÂ´Î´ÓÍ·¿ªÊ¼½ÓÊÜÊý¾Ý
+ 168   2        }
+ 169   1      }
+ 170          
+ 171          void configuart()
+ 172          {
+ 173   1        SCON=0x50; //´®¿ÚÄ£Ê½1
+ 174   1        AUXR=0x11;
+ 175   1        BRT=0xf7;
+ 176   1        ES=1;//Ê¹ÄÜ´®¿ÚÖÐ¶Ï
+C51 COMPILER V9.57.0.0   MAIN                                                              07/09/2020 16:13:21 PAGE 4   
+
+ 177   1      }
+ 178          
+ 179          void interruptuart()  interrupt 4
+ 180          {
+ 181   1        if(RI)
+ 182   1        {
+ 183   2          RI=0;
+ 184   2          bufRxd[cntRxd++]=SBUF;
+ 185   2          index=0;//½ÓÊÕµ½Ò»¸ö×Ö½ÚÊý¾ÝÖØÐÂ¼´Ê±,Ã»½ÓÊÕµ½Ê±£¬
+ 186   2          uart=0;//0.2ÃëÒÔºóuart½«»áÖÃÒ»£¬¿ªÊ¼ÔÚUARTdriver()ÖÐ´¦ÀíÊý¾Ý
+ 187   2        }
+ 188   1        if(TI)
+ 189   1        {
+ 190   2          TI=0;
+ 191   2          flagTxd=1;
+ 192   2        }
+ 193   1      }
+ 194          
+ 195          
+ 196          void Timer0Init()   //1ºÁÃë@33.1776MHz
+ 197          {
+ 198   1        AUXR &= 0x7F;   //¶¨Ê±Æ÷Ê±ÖÓ12TÄ£Ê½
+ 199   1        TMOD &= 0xF0;   //ÉèÖÃ¶¨Ê±Æ÷Ä£Ê½
+ 200   1        TMOD |= 0x01;   //ÉèÖÃ¶¨Ê±Æ÷Ä£Ê½
+ 201   1        TL0 = 0x33;   //ÉèÖÃ¶¨Ê±³õÖµ
+ 202   1        TH0 = 0xF5;   //ÉèÖÃ¶¨Ê±³õÖµ
+ 203   1        TF0 = 0;    //Çå³ýTF0±êÖ¾
+ 204   1        TR0 = 1;    //¶¨Ê±Æ÷0¿ªÊ¼¼ÆÊ±
+ 205   1        ET0 = 1;
+ 206   1      }
+ 207          //ÊýÂë¹ÜÑ¡ÔñÉÁË¸ÌØÐ§
+ 208          void ledswitch()
+ 209          {
+ 210   1        static unsigned int inde=0;
+ 211   1        inde++;
+ 212   1        if(sw==0)
+ 213   1        {
+ 214   2          ledbuff[0]=ledchar[Timer/10%10];
+ 215   2          ledbuff[1]=ledchar[Timer%10];
+ 216   2        }
+ 217   1        
+ 218   1        if(sw==1)
+ 219   1        {
+ 220   2          if(inde>500)
+ 221   2          {
+ 222   3            ledbuff[0]=0xff;
+ 223   3          }
+ 224   2          if(inde<=500)
+ 225   2          {
+ 226   3            ledbuff[0]=ledchar[Timer/10%10];
+ 227   3          }
+ 228   2          ledbuff[1]=ledchar[Timer%10];
+ 229   2        }
+ 230   1          
+ 231   1        if(sw==2)
+ 232   1        {
+ 233   2          if(inde>500)
+ 234   2          {
+ 235   3            ledbuff[1]=0xff;
+ 236   3          }
+ 237   2          if(sw==2&&inde<=500)
+ 238   2          {
+C51 COMPILER V9.57.0.0   MAIN                                                              07/09/2020 16:13:21 PAGE 5   
+
+ 239   3            ledbuff[1]=ledchar[Timer%10];
+ 240   3          }
+ 241   2          ledbuff[0]=ledchar[Timer/10%10];
+ 242   2        }
+ 243   1        if(inde>=1000)inde=0;
+ 244   1                  /*switch(sw)
+ 245   1                  {
+ 246   1                    case 0:ledbuff[0]=ledchar[Timer/10%10];
+ 247   1                    ledbuff[1]=ledchar[Timer%10];
+ 248   1                    case 1:if(inde>500)
+ 249   1                    {
+ 250   1                      ledbuff[0]=0xff;
+ 251   1                    }
+ 252   1                    if(inde<=500)
+ 253   1                    {
+ 254   1                      ledbuff[0]=ledchar[Timer/10%10];
+ 255   1                    }
+ 256   1                    break;
+ 257   1                    case 2:if(inde>500)
+ 258   1                    {
+ 259   1                      ledbuff[1]=0xff;
+ 260   1                    }
+ 261   1                    if(sw==2&&inde<=500)
+ 262   1                    {
+ 263   1                      ledbuff[1]=ledchar[Timer%10];
+ 264   1                    }
+ 265   1                    break;
+ 266   1                  }
+ 267   1                  if(inde>=1000)inde=0;*/
+ 268   1      }
+ 269          
+ 270          void InterruptTimer0() interrupt 1
+ 271          {
+ 272   1        TL0 = 0x33;
+ 273   1        TH0 = 0xF5;
+ 274   1        keyscan();
+ 275   1        if(ENLED==0)
+ 276   1        {
+ 277   2          ledswitch();
+ 278   2          ledscan();
+ 279   2        }
+ 280   1        index++;
+ 281   1        index2++;
+ 282   1        if(index>=1000)
+ 283   1        {
+ 284   2          index=0;
+ 285   2          TIM[2]++;
+ 286   2          repo=1;
+ 287   2          flag18=1;//flag1sÓÃÓÚÎÂ¶ÈË¢ÐÂ
+ 288   2          if(run&&sw==0)Timer--;
+ 289   2          if(Timer==0)
+ 290   2          {
+ 291   3            en=1;
+ 292   3            Timer=60;
+ 293   3          }
+ 294   2        }
+ 295   1        if(index2>=300)
+ 296   1        {
+ 297   2          disp=1;//dispÓÃÓÚÄ£ÄâÊ±ÖÓË¢ÐÂ
+ 298   2          index2=0;
+ 299   2          uart=1;
+ 300   2        }
+C51 COMPILER V9.57.0.0   MAIN                                                              07/09/2020 16:13:21 PAGE 6   
+
+ 301   1        
+ 302   1        if(TIM[2]>=60)
+ 303   1        {
+ 304   2          TIM[2]=0;
+ 305   2          TIM[1]++;
+ 306   2        }
+ 307   1        if(TIM[1]>=60)
+ 308   1        {
+ 309   2          TIM[1]=0;
+ 310   2          TIM[0]++;
+ 311   2        }
+ 312   1        if(TIM[0]>=24)
+ 313   1        {
+ 314   2          TIM[0]=0;
+ 315   2        }
+ 316   1      
+ 317   1        if(en)//ÄÖÖÓºÍµçÑ¹ÉÏÏÂÏÞ¶¼¿ÉÒÔ´ò¿ª·äÃùÆ÷
+ 318   1        {
+ 319   2          P13=~P13;
+ 320   2        }
+ 321   1      }
+ 322          //¸ÄÃÜÂëº¯Êý
+ 323          void gaimiaction(unsigned char i)
+ 324          {
+ 325   1        static unsigned char steap=0;
+ 326   1        unsigned char s[2];
+ 327   1        s[1]='\0';
+ 328   1        s[0]=mima[steap]=(i+'0');
+ 329   1        LcdShowStr(steap,1,s);
+ 330   1        steap++;
+ 331   1        if(steap==6)
+ 332   1        {
+ 333   2          steap=0;
+ 334   2          LcdAreaClean(0,1,16);
+ 335   2          LcdShowStr(0,1,"OK");
+ 336   2        }
+ 337   1      }
+ 338          //ÊäÈëÃÜÂëº¯Êý
+ 339          void inputmima(unsigned char i)
+ 340          {
+ 341   1        static unsigned char steap=0;
+ 342   1        static unsigned char str[7],s[2];
+ 343   1        str[7]='\0';
+ 344   1        s[1]='\0';
+ 345   1        s[0]=str[steap]=(i+'0');
+ 346   1        LcdShowStr(steap,1,s);
+ 347   1        steap++;
+ 348   1        if(steap==6)
+ 349   1        {
+ 350   2          steap=0;
+ 351   2          LcdAreaClean(0,1,16);
+ 352   2          if(CmpMemory(str, mima))
+ 353   2          {
+ 354   3            ui=1;
+ 355   3          }
+ 356   2          else
+ 357   2          {
+ 358   3            LcdFullClean();
+ 359   3            LcdShowStr(0,0,"Try again!");
+ 360   3          }
+ 361   2        }
+ 362   1      }
+C51 COMPILER V9.57.0.0   MAIN                                                              07/09/2020 16:13:21 PAGE 7   
+
+ 363          //¸ÄÊ±¼äº¯Êý
+ 364          void gaishijian(unsigned char i)
+ 365          {
+ 366   1        static unsigned char steap=0;
+ 367   1        static unsigned char s[2],str[6];
+ 368   1        if(steap==0)
+ 369   1        {
+ 370   2          LcdAreaClean(0,1,16);
+ 371   2        }
+ 372   1        s[1]='\0';
+ 373   1        s[0]=str[steap]=(i+'0');
+ 374   1        LcdShowStr(steap,1,s);
+ 375   1        steap++;
+ 376   1        if(steap==6)
+ 377   1        {
+ 378   2          storTIM=1;//Ö»ÓÐÔÚµÚ6²½£¬ÊäÍêÃÜÂëºó²ÅÄÜ½øÐÐ´¢´æÃÜÂë
+ 379   2          TIM[0]=(str[0]-'0')*10+(str[1]-'0');
+ 380   2          TIM[1]=(str[2]-'0')*10+(str[3]-'0');
+ 381   2          TIM[2]=(str[4]-'0')*10+(str[5]-'0');
+ 382   2          steap=0;
+ 383   2          LcdAreaClean(0,1,16);
+ 384   2          LcdShowStr(0,1,"OK");
+ 385   2        }
+ 386   1        else storTIM=0;
+ 387   1      }
+ 388          //¸ÄÃë±íº¯Êý
+ 389          void changeTimer(unsigned char unmber)
+ 390          {
+ 391   1        if(sw>0)
+ 392   1        {
+ 393   2          switch(sw)
+ 394   2          {
+ 395   3            case 0:break;
+ 396   3            case 1:Timer=unmber*10+Timer%10;break;
+ 397   3            case 2:Timer=(Timer/10)*10+unmber;break;
+ 398   3          }
+ 399   2          
+ 400   2        }
+ 401   1      }
+ 402          
+ 403          void keyaction(unsigned char keycode)
+ 404          {
+ 405   1        if(ui)//Ö÷¼üÅÌ
+ 406   1        {
+ 407   2          switch(keycode)
+ 408   2          {
+ 409   3            case 'u':ab++;yi=1;gaimi=0;gaishi=0;ENLED=1;if(ab==4)ab=0;LcdFullClean();break;
+ 410   3            case 'd':en=0;P13=1;break;
+ 411   3            case 'e':ui=0;ab=0;gaimi=0;gaishi=0;ENLED=1;LcdFullClean();LcdShowStr(0,0,start0);break;//¹Ø»ú
+ 412   3          }
+ 413   2        }
+ 414   1        else//¹Ø»úºóµÄ×¨ÓÃ¼üÅÌ
+ 415   1        {
+ 416   2          switch(keycode)
+ 417   2          {
+ 418   3            case 1:inputmima(1);break;
+ 419   3            case 2:inputmima(2);break;
+ 420   3            case 3:inputmima(3);break;
+ 421   3            case 4:inputmima(4);break;
+ 422   3            case 5:inputmima(5);break;
+ 423   3            case 6:inputmima(6);break;
+ 424   3            case 7:inputmima(7);break;
+C51 COMPILER V9.57.0.0   MAIN                                                              07/09/2020 16:13:21 PAGE 8   
+
+ 425   3            case 8:inputmima(8);break;
+ 426   3            case 9:inputmima(9);break;
+ 427   3            case 0:inputmima(0);break;
+ 428   3          }
+ 429   2        }
+ 430   1        
+ 431   1        if(gaimi)//¸ÄÃÜÂë×¨ÓÃ¼üÅÌ
+ 432   1        {
+ 433   2          switch(keycode)
+ 434   2          {
+ 435   3            case 1:gaimiaction(1);break;
+ 436   3            case 2:gaimiaction(2);break;
+ 437   3            case 3:gaimiaction(3);break;
+ 438   3            case 4:gaimiaction(4);break;
+ 439   3            case 5:gaimiaction(5);break;
+ 440   3            case 6:gaimiaction(6);break;
+ 441   3            case 7:gaimiaction(7);break;
+ 442   3            case 8:gaimiaction(8);break;
+ 443   3            case 9:gaimiaction(9);break;
+ 444   3            case 0:gaimiaction(0);break;
+ 445   3          }
+ 446   2        }
+ 447   1        if(gaishi)//¸ÄÊ±¼ä¼üÅÌ
+ 448   1        {
+ 449   2          switch(keycode)
+ 450   2          {
+ 451   3            case 'n':if(storTIM)//ÊäÈëÊ±¼äµÚ6²½storTIM=1¿ÉÒÔ´¢´æµ±Ç°µÄÊ±¼ä
+ 452   3            {
+ 453   4              E2Write(TIM,0x00,3);
+ 454   4              LcdShowStr(0,1,"ok and saved");
+ 455   4            }break;
+ 456   3            
+ 457   3            
+ 458   3            case 1:gaishijian(1);break;
+ 459   3            case 2:gaishijian(2);break;
+ 460   3            case 3:gaishijian(3);break;
+ 461   3            case 4:gaishijian(4);break;
+ 462   3            case 5:gaishijian(5);break;
+ 463   3            case 6:gaishijian(6);break;
+ 464   3            case 7:gaishijian(7);break;
+ 465   3            case 8:gaishijian(8);break;
+ 466   3            case 9:gaishijian(9);break;
+ 467   3            case 0:gaishijian(0);break;
+ 468   3          }
+ 469   2        }
+ 470   1        if(ENLED==0)//¸ÃÃë±í¼üÅÌ
+ 471   1        {
+ 472   2          
+ 473   2          switch(keycode)
+ 474   2          {
+ 475   3            case 'l':sw++;if(sw==3)sw=0;break;
+ 476   3            case 'r':run=~run;break;
+ 477   3            case 'n':if(sw==0&&run==0)//Ö»ÓÐÔÚÃë±íÔÝÍ£ºÍ²»¸ü¸ÄÊ±¿ÉÒÔ´¢´æ
+ 478   3            {
+ 479   4              E2WriteByte(0x03,Timer);//°Ñµ±Ç°µÄÊ±¼ä´¢´æÏÂÀ´
+ 480   4              LcdAreaClean(0,1,16);
+ 481   4              LcdShowStr(0,1,"Saved");
+ 482   4            }break;
+ 483   3            
+ 484   3            case 1:changeTimer(1);break;
+ 485   3            case 2:changeTimer(2);break;
+ 486   3            case 3:changeTimer(3);break;
+C51 COMPILER V9.57.0.0   MAIN                                                              07/09/2020 16:13:21 PAGE 9   
+
+ 487   3            case 4:changeTimer(4);break;
+ 488   3            case 5:changeTimer(5);break;
+ 489   3            case 6:changeTimer(6);break;
+ 490   3            case 7:changeTimer(7);break;
+ 491   3            case 8:changeTimer(8);break;
+ 492   3            case 9:changeTimer(9);break;
+ 493   3            case 0:changeTimer(0);break;
+ 494   3          
+ 495   3          }
+ 496   2        }
+ 497   1      }
+ 498          
+ 499          
+ 500          void IRAction()
+ 501          {
+ 502   1        if(irflag)
+ 503   1        {
+ 504   2          irflag=0;
+ 505   2          
+ 506   2          
+ 507   2          if(ui)//Ö÷¼üÅÌ
+ 508   2          {
+ 509   3            switch(ircode[2])
+ 510   3            {
+ 511   4              case 0x40:ab++;yi=1;gaimi=0;gaishi=0;ENLED=1;if(ab==4)ab=0;LcdFullClean();break;
+ 512   4              case 0x19:en=0;P13=1;break;
+ 513   4              case 0x45:ui=0;ab=0;gaimi=0;gaishi=0;ENLED=1;LcdFullClean();LcdShowStr(0,0,start0);break;//¹Ø»ú
+ 514   4            }
+ 515   3          }
+ 516   2          else//¹Ø»úºóµÄ×¨ÓÃ¼üÅÌ
+ 517   2          {
+ 518   3            switch(ircode[2])
+ 519   3            {
+ 520   4              case 0x0c:inputmima(1);break;
+ 521   4              case 0x18:inputmima(2);break;
+ 522   4              case 0x5e:inputmima(3);break;
+ 523   4              case 0x08:inputmima(4);break;
+ 524   4              case 0x1c:inputmima(5);break;
+ 525   4              case 0x5a:inputmima(6);break;
+ 526   4              case 0x42:inputmima(7);break;
+ 527   4              case 0x52:inputmima(8);break;
+ 528   4              case 0x4a:inputmima(9);break;
+ 529   4              case 0x16:inputmima(0);break;
+ 530   4            }
+ 531   3          }
+ 532   2          
+ 533   2          if(gaimi)//¸ÄÃÜÂë×¨ÓÃ¼üÅÌ
+ 534   2          {
+ 535   3            switch(ircode[2])
+ 536   3            {
+ 537   4              case 0x0c:gaimiaction(1);break;
+ 538   4              case 0x18:gaimiaction(2);break;
+ 539   4              case 0x5e:gaimiaction(3);break;
+ 540   4              case 0x08:gaimiaction(4);break;
+ 541   4              case 0x1c:gaimiaction(5);break;
+ 542   4              case 0x5a:gaimiaction(6);break;
+ 543   4              case 0x42:gaimiaction(7);break;
+ 544   4              case 0x52:gaimiaction(8);break;
+ 545   4              case 0x4a:gaimiaction(9);break;
+ 546   4              case 0x16:gaimiaction(0);break;
+ 547   4            }
+ 548   3          }
+C51 COMPILER V9.57.0.0   MAIN                                                              07/09/2020 16:13:21 PAGE 10  
+
+ 549   2          
+ 550   2          if(gaishi)//¸ÄÊ±¼ä×¨ÓÃ¼üÅÌ
+ 551   2          {
+ 552   3            switch(ircode[2])
+ 553   3            {
+ 554   4              case 0x44:if(storTIM)
+ 555   4              {
+ 556   5                E2Write(TIM,0x00,3);
+ 557   5                LcdShowStr(0,1,"ok and saved");
+ 558   5              }break;
+ 559   4            
+ 560   4              case 0x0c:gaishijian(1);break;
+ 561   4              case 0x18:gaishijian(2);break;
+ 562   4              case 0x5e:gaishijian(3);break;
+ 563   4              case 0x08:gaishijian(4);break;
+ 564   4              case 0x1c:gaishijian(5);break;
+ 565   4              case 0x5a:gaishijian(6);break;
+ 566   4              case 0x42:gaishijian(7);break;
+ 567   4              case 0x52:gaishijian(8);break;
+ 568   4              case 0x4a:gaishijian(9);break;
+ 569   4              case 0x16:gaishijian(0);break;
+ 570   4            }
+ 571   3          }
+ 572   2          
+ 573   2          if(ENLED==0)//¸ÃÃë±í¼üÅÌ
+ 574   2          {
+ 575   3            switch(ircode[2])
+ 576   3            {
+ 577   4              case 0x07:sw++;if(sw==3)sw=0;break;
+ 578   4              case 0x09:run=~run;break;
+ 579   4              case 0x44:if(sw==0&&run==0)
+ 580   4              {
+ 581   5                E2WriteByte(0x03,Timer);
+ 582   5                LcdAreaClean(0,1,16);
+ 583   5                LcdShowStr(0,1,"Saved");
+ 584   5              }break;
+ 585   4              
+ 586   4              case 0x0c:changeTimer(1);break;
+ 587   4              case 0x18:changeTimer(2);break;
+ 588   4              case 0x5e:changeTimer(3);break;
+ 589   4              case 0x08:changeTimer(4);break;
+ 590   4              case 0x1c:changeTimer(5);break;
+ 591   4              case 0x5a:changeTimer(6);break;
+ 592   4              case 0x42:changeTimer(7);break;
+ 593   4              case 0x52:changeTimer(8);break;
+ 594   4              case 0x4a:changeTimer(9);break;
+ 595   4              case 0x16:changeTimer(0);break;
+ 596   4            }
+ 597   3          }
+ 598   2          
+ 599   2        }
+ 600   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   2481    ----
+   CONSTANT SIZE    =    185    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     56      39
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =     12    ----
+C51 COMPILER V9.57.0.0   MAIN                                                              07/09/2020 16:13:21 PAGE 11  
+
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
