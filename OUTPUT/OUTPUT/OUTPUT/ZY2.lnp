@@ -1,0 +1,10 @@
+"..\OUTPUT\STARTUP.obj",
+"..\OUTPUT\main.obj",
+"..\OUTPUT\lcd1602.obj",
+"..\OUTPUT\key.obj",
+"..\OUTPUT\IRReceived.obj",
+"..\OUTPUT\d18b20.obj",
+"..\OUTPUT\led.obj",
+"..\OUTPUT\EEROM.obj" 
+TO "..\OUTPUT\ZY2" 
+PRINT(".\Listings\ZY2.m51") RAMSIZE(256) 
